@@ -4,51 +4,97 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
 )
 
 func main() {
-	var dest, targ, dext, ac, vc, conv string
+	var dest string
+	var tmpg, tmkv bool
 	flag.StringVar(&dest, "d", "", "Destination folder")
-	flag.StringVar(&targ, "t", "", "Target extension")
-	flag.StringVar(&dext, "e", "", "Output extension")
-	flag.StringVar(&ac, "a", "", "Audio codec")
-	flag.StringVar(&vc, "v", "", "Video codec")
-	flag.StringVar(&conv, "c", "avconv", "Converter")
+	flag.BoolVar(&tmpg, "m", false, "Target MPG player")
+	flag.BoolVar(&tmkv, "k", false, "Target MKV player")
 	flag.Parse()
+	r := make([]string, 0)
+	var e error
 	if dest != "." {
-		s, r := bufio.NewScanner(os.Stdin), make([]string, 0)
+		s := bufio.NewScanner(os.Stdin)
 		for s.Scan() {
-			r = append(r, s.Text())
-		}
-		for _, j := range r {
-			ext := path.Ext(j)
-			if ext == targ {
-				fl := j[:len(j)-len(ext)] + dext
-				var cmd *exec.Cmd
-				if ac != "" && vc != "" {
-					cmd = exec.Command(conv,
-						"-i", j,
-						"-acodec", ac,
-						"-vcodec", vc,
-						path.Join(dest, fl),
-					)
-				} else if ac != "" {
-					cmd = exec.Command(conv,
-						"-i", j,
-						"-acodec", ac,
-						path.Join(dest, fl),
-					)
-				}
-				if cmd != nil {
-					cmd.Stderr, cmd.Stdout = os.Stderr, os.Stdout
-					cmd.Run()
-				}
-			}
+			t := s.Text()
+			r = append(r, t)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "Output directory cannot be .\n")
+		e = fmt.Errorf("Output directory cannot be")
 	}
+	var cs []*exec.Cmd
+	if e == nil {
+		if tmpg {
+			cs = commands(r, dest, mpg)
+		}
+		if tmkv {
+			cs = commands(r, dest, mkv)
+		}
+	}
+	inf := func(i int) {
+		cs[i].Stdout, cs[i].Stderr = os.Stdout, os.Stderr
+		cs[i].Run()
+	}
+	forall(inf, len(cs))
+}
+
+type outExt func(string) string
+
+func mpg(inp string, oe outExt) (c *exec.Cmd, e error) {
+	out := oe(".mpg")
+	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp, "-b:v", "1000k",
+		"-b:a", "128k", "-target", "ntsc-dvd", out,
+	)
+	return
+}
+
+func mkv(inp string, oe outExt) (c *exec.Cmd, e error) {
+	out := oe(".mkv")
+	var ac, vc string
+	ac, vc, e = videoInfo(inp)
+	if ac == "mp3" {
+		ac = "copy"
+	} else {
+		ac = "mp3"
+	}
+	if vc == "h264" {
+		vc = "copy"
+	} else {
+		vc = "h264"
+	}
+	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp, "-acodec", ac,
+		"-vcodec", vc, out)
+	return
+}
+
+func output(inp, oext, opath string) (out string) {
+	ext := path.Ext(inp)
+	outf := inp[:len(inp)-len(ext)] + oext
+	out = path.Join(opath, outf)
+	return
+}
+
+type convCmd func(string, outExt) (*exec.Cmd, error)
+
+func commands(fs []string, opath string, cc convCmd) (cs []*exec.Cmd) {
+	cs = make([]*exec.Cmd, len(fs))
+	inf := func(i int) {
+		oe := func(ext string) (p string) {
+			p = output(fs[i], ext, opath)
+			return
+		}
+		var e error
+		cs[i], e = cc(fs[i], oe)
+		if e != nil {
+			log.Print(e)
+		}
+	}
+	forall(inf, len(fs))
+	return
 }
