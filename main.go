@@ -1,3 +1,6 @@
+// convff reads from standard input a list of video files for
+// converting them to the format specified as argument, using
+// ffmpeg and ffprobe.
 package main
 
 import (
@@ -26,7 +29,7 @@ func main() {
 			r = append(r, t)
 		}
 	} else {
-		e = fmt.Errorf("Output directory cannot be")
+		e = fmt.Errorf("Output directory cannot be .")
 	}
 	var cs []*exec.Cmd
 	if e == nil {
@@ -48,28 +51,36 @@ type outExt func(string) string
 
 func mpg(inp string, oe outExt) (c *exec.Cmd, e error) {
 	out := oe(".mpg")
-	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp, "-b:v", "1000k",
-		"-b:a", "128k", "-target", "ntsc-dvd", out,
+	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp,
+		"-b:v", "1000k", "-b:a", "128k",
+		"-target", "ntsc-dvd", out,
 	)
 	return
 }
 
 func mkv(inp string, oe outExt) (c *exec.Cmd, e error) {
-	out := oe(".mkv")
-	var ac, vc string
-	ac, vc, e = videoInfo(inp)
-	if ac == "mp3" {
-		ac = "copy"
-	} else {
-		ac = "mp3"
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "mp3" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "mp3"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "h264" && n.fps <= 30 {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "h264"
+		}
+		if n.fps > 30 {
+			args = append(args, "-r", "30")
+		}
+		out := oe(".mkv")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
 	}
-	if vc == "h264" {
-		vc = "copy"
-	} else {
-		vc = "h264"
-	}
-	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp, "-acodec", ac,
-		"-vcodec", vc, out)
 	return
 }
 

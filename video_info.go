@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 )
 
@@ -78,7 +79,13 @@ type tags struct {
 	Handler_Name string `json: "handler_name"`
 }
 
-func videoInfo(inp string) (audioc, videoc string, e error) {
+type convPar struct {
+	audioC string
+	videoC string
+	fps    int
+}
+
+func videoInfo(inp string) (n *convPar, e error) {
 	ic := exec.Command("ffprobe", "-loglevel", "8",
 		"-hide_banner", "-print_format", "json", "-show_streams",
 		inp)
@@ -89,13 +96,17 @@ func videoInfo(inp string) (audioc, videoc string, e error) {
 		e = json.Unmarshal(bs, info)
 	}
 	if e == nil {
+		n = new(convPar)
 		inf := func(i int) {
 			str := info.Streams[i]
 			if str.Codec_Type == "video" {
-				videoc = str.Codec_Name
+				n.videoC = str.Codec_Name
+				var num, den int
+				fmt.Sscanf(str.R_Frame_Rate, "%d/%d", &num, &den)
+				n.fps = num / den
 			}
 			if str.Codec_Type == "audio" {
-				audioc = str.Codec_Name
+				n.audioC = str.Codec_Name
 			}
 		}
 		forall(inf, len(info.Streams))
