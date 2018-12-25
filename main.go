@@ -22,14 +22,17 @@ func main() {
 	flag.Parse()
 	r := make([]string, 0)
 	var e error
-	if dest != "." {
+	if dest != "." && dest != "" {
+		e = os.MkdirAll(dest, os.ModeDir|os.ModePerm)
+	} else {
+		e = fmt.Errorf(`Output directory cannot be "%s"`, dest)
+	}
+	if e == nil {
 		s := bufio.NewScanner(os.Stdin)
 		for s.Scan() {
 			t := s.Text()
 			r = append(r, t)
 		}
-	} else {
-		e = fmt.Errorf("Output directory cannot be .")
 	}
 	var cs []*exec.Cmd
 	if e == nil {
