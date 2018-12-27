@@ -2,7 +2,18 @@
 
 `convff` is a command line program for encapsulating two patterns for converting videos using `ffmpeg`:
 
-## DVD player as target
+## Usage
+
+`convff` reads a list of video files, separated by newline character, from standard input and applies each one of them a conversion command selected according command line flags:
+
+- `-d dir` where `dir` is the output directory for the converted files, it cannot be "." for avoiding name clashes.
+- `-v` convert files for a VCD player
+- `-x` convert files for a XVID player
+- `-t` convert files for a digital TV receiver device, that reads MKV files with H264 video and MP3 audio.
+
+## Implementation
+
+### DVD player as target
 
 When the target is a DVD player, it accepts two formats: VCD and XVID. Conversion commands for both formats are generated respectively by:
 
@@ -31,11 +42,11 @@ func xvid(inp string, oe outExt) (c *exec.Cmd, e error) {
 
 The `outExt` implementation carries the output directory joined with the output file name in its context, when passing the file extension as parameter it returns the complete output path.
 
-## Digital TV device as target
+### Digital TV receiver device as target
 
-When the target is a digital TV device the command is more complicated. Since it can reproduce several video and audio formats, using the `copy` feature there's opportunity to reduce the conversion time.
+When the target is a digital TV receiver device the command is more complicated. Since it can reproduce several video and audio formats, using the `copy` feature there's opportunity to reduce the conversion time.
 
-For video streams with h264 codec at 30 frames per second (fps) and less, there is no need to convert such streams. In that case the arguments for `ffmpeg` contain `-vcodec copy`. If the video stream is encoded with other format different from h264, it needs to be converted. Also, regardless of the video codec, if `fps > 30` the arguments to `ffmpeg` contain `-vcodec h264 -r 30`.
+For video streams with H264 codec at 30 frames per second (fps) and less, there is no need to convert such streams. In that case the arguments for `ffmpeg` contain `-vcodec copy`. If the video stream is encoded with other format different from h264, it needs to be converted. Also, regardless of the video codec, if `fps > 30` the arguments to `ffmpeg` contain `-vcodec h264 -r 30`.
 
 The digital TV device reproduces mp3 sound, therefore if the input audio stream has that format, the arguments to `ffmpeg` contain `-acodec copy`. Also that device reads MKV files, and that is the container selected in this case. This is implemented by:
 
@@ -123,7 +134,7 @@ func videoInfo(inp string) (n *convPar, e error) {
 
 Scanning `num` and `den`, and then doing `n.fps = num / den` is necessary since some times the `R_Frame_Rate` field comes in the form `"30000/1001"`.
 
-## Converting several files
+### Converting several files
 
 It's an advantage convert several files with one call, with that in mind the procedure `commands` is implemented:
 
@@ -157,7 +168,7 @@ func output(inp, opath string) (oe outExt) {
 
 Notice that both `mpg` and `mkv` are implementations of `convCmd`. The `output` procedure returns a procedure that creates the output file path according information captured in this context (`inp`, `opath`), and an output extension supplied in the context where its called.
 
-## Command line interface
+### Command line interface
 
 With the implementation of `commands` all that remains is supplying it paramaters, which come from the command line interface, and executing the commands it creates, which is done using `"os/exec"` library. The `fs` parameter is a list of file names parsed from standard input, this makes easy collecting the file names in a text file for then passing them in `convff` standard input.
 
@@ -218,7 +229,7 @@ if e != nil {
 }
 ```
 
-## Source file
+### Source file
 
 The source file for this program is:
 
@@ -256,7 +267,7 @@ func main() {
 <<<videoInfo>>>
 ```
 
-## TODO
+### TODO
 
 `lmt` needs this for proper output, it must be an error
 
