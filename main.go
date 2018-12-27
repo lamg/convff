@@ -16,10 +16,11 @@ import (
 
 func main() {
 	var dest string
-	var dvd, dtv bool
+	var fvcd, fxvid, fdtv bool
 	flag.StringVar(&dest, "d", "", "Destination folder")
-	flag.BoolVar(&dvd, "v", false, "DVD player target")
-	flag.BoolVar(&dtv, "t", false, "Digital TV device target")
+	flag.BoolVar(&fvcd, "v", false, "VCD player target")
+	flag.BoolVar(&fxvid, "x", false, "XVID player target")
+	flag.BoolVar(&fdtv, "t", false, "Digital TV device target")
 	flag.Parse()
 	var e error
 	if dest != "." && dest != "" {
@@ -35,10 +36,13 @@ func main() {
 		}
 	
 		var cs []*exec.Cmd
-		if dvd {
-			cs = commands(r, dest, mpg)
+		if fvcd {
+			cs = commands(r, dest, vcd)
 		}
-		if dtv {
+		if fxvid {
+			cs = commands(r, dest, xvid)
+		}
+		if fdtv {
 			cs = commands(r, dest, mkv)
 		}
 		
@@ -81,12 +85,20 @@ func output(inp, opath string) (oe outExt) {
 
 type outExt func(string) string
 
-func mpg(inp string, oe outExt) (c *exec.Cmd, e error) {
+func vcd(inp string, oe outExt) (c *exec.Cmd, e error) {
 	out := oe(".mpg")
 	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp,
 		"-b:v", "1000k", "-b:a", "128k",
 		"-target", "ntsc-dvd", out,
 	)
+	return
+}
+
+func xvid(inp string, oe outExt) (c *exec.Cmd, e error) {
+	out := oe(".avi")
+	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp,
+		"-b:v", "700k", "-vcodec", "libxvid", "-s", "720x576",
+		"-r", "30", "-aspect:v", "4:3", "-acodec", "mp3", out)
 	return
 }
 
