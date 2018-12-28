@@ -142,13 +142,14 @@ It's an advantage convert several files with one call, with that in mind the pro
 type convCmd func(string, outExt) (*exec.Cmd, error)
 
 func commands(fs []string, opath string, cc convCmd) (cs []*exec.Cmd) {
-	cs = make([]*exec.Cmd, len(fs))
+	cs = make([]*exec.Cmd, 0 ,len(fs))
 	inf := func(i int) {
 		oe := output(fs[i], opath)
-		var e error
-		cs[i], e = cc(fs[i], oe)
-		if e != nil {
-			log.Print(e)
+		c, e := cc(fs[i], oe)
+		if e == nil {
+			cs = append(cs, c)
+		} else {
+			log.Print(e)	
 		}
 	}
 	forall(inf, len(fs))
