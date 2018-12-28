@@ -16,11 +16,14 @@ import (
 
 func main() {
 	var dest string
-	var fvcd, fxvid, fdtv bool
+	var fvcd, fxvid, fdtv, w, wo, wc bool
 	flag.StringVar(&dest, "d", "", "Destination folder")
 	flag.BoolVar(&fvcd, "v", false, "VCD player target")
 	flag.BoolVar(&fxvid, "x", false, "XVID player target")
 	flag.BoolVar(&fdtv, "t", false, "Digital TV device target")
+	flag.BoolVar(&w, "w", false, "Faster conversion to WEBM")
+	flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
+	flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
 	flag.Parse()
 	var e error
 	if dest != "." && dest != "" {
@@ -44,6 +47,15 @@ func main() {
 		}
 		if fdtv {
 			cs = commands(r, dest, mkv)
+		}
+		if w {
+			cs = commands(r, dest, fastWebm)
+		}
+		if wo {
+			cs = commands(r, dest, oldWebm)
+		}
+		if wc {
+			cs = commands(r, dest, currWebm)
 		}
 		
 		inf := func(i int) {
@@ -171,6 +183,75 @@ func videoInfo(inp string) (n *convPar, e error) {
 			}
 		}
 		forall(inf, len(info.Streams))
+	}
+	return
+}
+
+func fastWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "vorbis" || n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp9" || n.videoC == "vp8" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp9"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
+	return
+}
+
+func oldWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "vorbis" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libvorbis"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp8" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp8"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
+	return
+}
+
+func currWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp9" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp9"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
 	}
 	return
 }

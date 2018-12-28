@@ -10,6 +10,9 @@
 - `-v` convert files for a VCD player
 - `-x` convert files for a XVID player
 - `-t` convert files for a digital TV receiver device, that reads MKV files with H264 video and MP3 audio.
+- `-w` convert files to WEBM format trying to copy streams compatible with WEBM.
+- `-wo` convert files to WEBM with VP8 and Vorbis streams.
+- `-wc` convert files to WEBM with VP9 and Opus streams.
 
 ## Implementation
 
@@ -134,6 +137,102 @@ func videoInfo(inp string) (n *convPar, e error) {
 
 Scanning `num` and `den`, and then doing `n.fps = num / den` is necessary since some times the `R_Frame_Rate` field comes in the form `"30000/1001"`.
 
+### Converting to WEBM format
+
+This is an MKV variant that contains VP8 or VP9 video streams, and Vorbis or Opus audio streams.
+
+The `fastWebm` procedure tries to copy streams compatible with the WEBM format.
+
+```go "fast webm"
+func fastWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "vorbis" || n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp9" || n.videoC == "vp8" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp9"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
+	return
+}
+```
+
+The `oldWebm` procedure forces to a WEBM with VP8 and Vorbis.
+
+```go "old webm"
+func oldWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "vorbis" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libvorbis"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp8" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp8"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
+	return
+}
+```
+
+The `currWebm` procedure forces to a WEBM with VP9 and Opus.
+
+```go "current webm"
+func currWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
+	args := []string{"-hide_banner", "-i", inp}
+	var n *convPar
+	n, e = videoInfo(inp)
+	if e == nil {
+		if n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = append(args, "-acodec", n.audioC)
+		if n.videoC == "vp9" {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "vp9"
+		}
+		out := oe(".webm")
+		args = append(args, "-vcodec", n.videoC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
+	return
+}
+```
+
+The WEBM conversion section includes:
+
+```go "webm"
+<<<fast webm>>>
+
+<<<old webm>>>
+
+<<<current webm>>>
+```
+
+
 ### Converting several files
 
 It's an advantage convert several files with one call, with that in mind the procedure `commands` is implemented:
@@ -194,6 +293,15 @@ if fxvid {
 if fdtv {
 	cs = commands(r, dest, mkv)
 }
+if w {
+	cs = commands(r, dest, fastWebm)
+}
+if wo {
+	cs = commands(r, dest, oldWebm)
+}
+if wc {
+	cs = commands(r, dest, currWebm)
+}
 
 inf := func(i int) {
 	cs[i].Stdout, cs[i].Stderr = os.Stdout, os.Stderr
@@ -208,11 +316,14 @@ The `main` procedure is implemented by:
 
 ```go "main content"
 var dest string
-var fvcd, fxvid, fdtv bool
+var fvcd, fxvid, fdtv, w, wo, wc bool
 flag.StringVar(&dest, "d", "", "Destination folder")
 flag.BoolVar(&fvcd, "v", false, "VCD player target")
 flag.BoolVar(&fxvid, "x", false, "XVID player target")
 flag.BoolVar(&fdtv, "t", false, "Digital TV device target")
+flag.BoolVar(&w, "w", false, "Faster conversion to WEBM")
+flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
+flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
 flag.Parse()
 var e error
 if dest != "." && dest != "" {
@@ -266,6 +377,8 @@ func main() {
 <<<ffinfo>>>
 
 <<<videoInfo>>>
+
+<<<webm>>>
 ```
 
 ### TODO
