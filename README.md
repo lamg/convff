@@ -35,10 +35,23 @@ func vcd(inp string, oe outExt) (c *exec.Cmd, e error) {
 
 ```go "xvid"
 func xvid(inp string, oe outExt) (c *exec.Cmd, e error) {
-	out := oe(".avi")
-	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp,
-		"-b:v", "700k", "-vcodec", "libxvid", "-s", "720x576",
-		"-r", "30", "-aspect:v", "4:3", "-acodec", "mp3", out)
+	args := []string{"-hide_banner", "-i", inp}
+	n, e := videoInfo(inp)
+	if e == nil {
+		if n.fps > 30 {
+			args = append(args, "-r", "30")
+		}
+		if n.audioC == "ac3" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "mp3"
+		}
+		out := oe(".avi")
+		args = append(args, "-b:v", "1000k",
+			"-vcodec", "libxvid", "-s", "720x576",
+			"-aspect:v", "4:3", "-acodec", n.audioC, out)
+		c = exec.Command("ffmpeg", args...)
+	}
 	return
 }
 ```
@@ -240,7 +253,8 @@ It's an advantage convert several files with one call, with that in mind the pro
 ```go "commands"
 type convCmd func(string, outExt) (*exec.Cmd, error)
 
-func commands(fs []string, opath string, cc convCmd) (cs []*exec.Cmd) {
+func commands(fs []string, opath string, 
+	cc convCmd) (cs []*exec.Cmd) {
 	cs = make([]*exec.Cmd, 0 ,len(fs))
 	inf := func(i int) {
 		oe := output(fs[i], opath)
