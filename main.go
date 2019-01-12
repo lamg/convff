@@ -41,20 +41,15 @@ func main() {
 		var cs []*exec.Cmd
 		if fvcd {
 			cs = commands(r, dest, vcd)
-		}
-		if fxvid {
+		} else if fxvid {
 			cs = commands(r, dest, xvid)
-		}
-		if fdtv {
+		} else if fdtv {
 			cs = commands(r, dest, mkv)
-		}
-		if w {
+		} else if w {
 			cs = commands(r, dest, fastWebm)
-		}
-		if wo {
+		} else if wo {
 			cs = commands(r, dest, oldWebm)
-		}
-		if wc {
+		} else if wc {
 			cs = commands(r, dest, currWebm)
 		}
 		
@@ -69,22 +64,13 @@ func main() {
 	}
 }
 
-type convCmd func(string, outExt) (*exec.Cmd, error)
+type convArgs func(getCP, outExt) ([]string, error)
+type getCP func() (*convPar, error)
 
-func commands(fs []string, opath string, 
-	cc convCmd) (cs []*exec.Cmd) {
-	cs = make([]*exec.Cmd, 0 ,len(fs))
-	inf := func(i int) {
-		oe := output(fs[i], opath)
-		c, e := cc(fs[i], oe)
-		if e == nil {
-			cs = append(cs, c)
-		} else {
-			log.Print(e)	
-		}
-	}
-	forall(inf, len(fs))
-	return
+type convPar struct {
+	audioC string
+	videoC string
+	fps    int
 }
 
 func output(inp, opath string) (oe outExt) {
@@ -97,79 +83,27 @@ func output(inp, opath string) (oe outExt) {
 	return
 }
 
-type outExt func(string) string
-
-func vcd(inp string, oe outExt) (c *exec.Cmd, e error) {
-	out := oe(".mpg")
-	c = exec.Command("ffmpeg", "-hide_banner", "-i", inp,
-		"-b:v", "1000k", "-b:a", "128k",
-		"-target", "ntsc-dvd", out,
-	)
-	return
-}
-
-func xvid(inp string, oe outExt) (c *exec.Cmd, e error) {
-	args := []string{"-hide_banner", "-i", inp}
-	n, e := videoInfo(inp)
-	if e == nil {
-		if n.fps > 30 {
-			args = append(args, "-r", "30")
+func commands(fs []string, opath string, 
+	cc convArgs) (cs []*exec.Cmd) {
+	cs = make([]*exec.Cmd, 0 ,len(fs))
+	inf := func(i int) {
+		oe := output(fs[i], opath)
+		cp := func() (n *convPar, e error){
+			n, e = videoInfo(fs[i])
+			return
 		}
-		if n.audioC == "ac3" {
-			n.audioC = "copy"
+		args, e := cc(cp, oe)
+		if e == nil {
+			args = append([]string{"-hide_banner", "-i", fs[i]}, 
+				args...)
+			c := exec.Command("ffmpeg", args...)
+			cs = append(cs, c)
 		} else {
-			n.audioC = "mp3"
+			log.Print(e)
 		}
-		out := oe(".avi")
-		args = append(args, "-b:v", "1000k",
-			"-vcodec", "libxvid", "-s", "720x576",
-			"-aspect:v", "4:3", "-acodec", n.audioC, out)
-		c = exec.Command("ffmpeg", args...)
 	}
+	forall(inf, len(fs))
 	return
-}
-
-func mkv(inp string, oe outExt) (c *exec.Cmd, e error) {
-	args := []string{"-hide_banner", "-i", inp}
-	var n *convPar
-	n, e = videoInfo(inp)
-	if e == nil {
-		if n.audioC == "mp3" {
-			n.audioC = "copy"
-		} else {
-			n.audioC = "mp3"
-		}
-		args = append(args, "-acodec", n.audioC)
-		if n.videoC == "h264" && n.fps <= 30 {
-			n.videoC = "copy"
-		} else {
-			n.videoC = "h264"
-		}
-		if n.fps > 30 {
-			args = append(args, "-r", "30")
-		}
-		out := oe(".mkv")
-		args = append(args, "-vcodec", n.videoC, out)
-		c = exec.Command("ffmpeg", args...)
-	}
-	return
-}
-
-type ffInfo struct {
-	Streams []stream `json: "streams"`
-}
-
-type stream struct {
-	// audio and video fields
-	Codec_Name   string `json: "codec_name"`
-	Codec_Type   string `json: "codec_type"`
-	R_Frame_Rate string `json: "r_frame_rate"`
-}
-
-type convPar struct {
-	audioC string
-	videoC string
-	fps    int
 }
 
 func videoInfo(inp string) (n *convPar, e error) {
@@ -201,17 +135,78 @@ func videoInfo(inp string) (n *convPar, e error) {
 	return
 }
 
-func fastWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
-	args := []string{"-hide_banner", "-i", inp}
-	var n *convPar
-	n, e = videoInfo(inp)
+type outExt func(string) string
+
+func vcd(cp getCP, oe outExt) (args []string, e error) {
+	out := oe(".mpg")
+	args = []string{"-b:v", "1000k", "-b:a", "128k",
+		"-target", "ntsc-dvd", out}
+	return
+}
+
+func xvid(cp getCP, oe outExt) (args []string, e error) {
+	n, e := cp()
+	if e == nil {
+		args = []string{}
+		if n.fps > 30 {
+			args = append(args, "-r", "30")
+		}
+		if n.audioC == "ac3" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "mp3"
+		}
+		out := oe(".avi")
+		args = append(args, "-b:v", "1000k",
+			"-vcodec", "libxvid", "-s", "720x576",
+			"-aspect:v", "4:3", "-acodec", n.audioC, out)
+	}
+	return
+}
+
+func mkv(cp getCP, oe outExt) (args []string, e error) {
+	n, e := cp()
+	if e == nil {
+		if n.audioC == "mp3" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "mp3"
+		}
+		args = []string{"-acodec", n.audioC}
+		if n.videoC == "h264" && n.fps <= 30 {
+			n.videoC = "copy"
+		} else {
+			n.videoC = "h264"
+		}
+		if n.fps > 30 {
+			args = append(args, "-r", "30")
+		}
+		out := oe(".mkv")
+		args = append(args, "-vcodec", n.videoC, out)
+	}
+	return
+}
+
+type ffInfo struct {
+	Streams []stream `json: "streams"`
+}
+
+type stream struct {
+	// audio and video fields
+	Codec_Name   string `json: "codec_name"`
+	Codec_Type   string `json: "codec_type"`
+	R_Frame_Rate string `json: "r_frame_rate"`
+}
+
+func fastWebm(cp getCP, oe outExt) (args []string, e error) {
+	n, e := cp()
 	if e == nil {
 		if n.audioC == "vorbis" || n.audioC == "opus" {
 			n.audioC = "copy"
 		} else {
 			n.audioC = "libopus"
 		}
-		args = append(args, "-acodec", n.audioC)
+		args = []string{"-acodec", n.audioC}
 		if n.videoC == "vp9" || n.videoC == "vp8" {
 			n.videoC = "copy"
 		} else {
@@ -219,22 +214,19 @@ func fastWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
 		}
 		out := oe(".webm")
 		args = append(args, "-vcodec", n.videoC, out)
-		c = exec.Command("ffmpeg", args...)
 	}
 	return
 }
 
-func oldWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
-	args := []string{"-hide_banner", "-i", inp}
-	var n *convPar
-	n, e = videoInfo(inp)
+func oldWebm(cp getCP, oe outExt) (args []string, e error) {
+	n, e := cp()
 	if e == nil {
 		if n.audioC == "vorbis" {
 			n.audioC = "copy"
 		} else {
 			n.audioC = "libvorbis"
 		}
-		args = append(args, "-acodec", n.audioC)
+		args = []string{"-acodec", n.audioC}
 		if n.videoC == "vp8" {
 			n.videoC = "copy"
 		} else {
@@ -242,22 +234,19 @@ func oldWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
 		}
 		out := oe(".webm")
 		args = append(args, "-vcodec", n.videoC, out)
-		c = exec.Command("ffmpeg", args...)
 	}
 	return
 }
 
-func currWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
-	args := []string{"-hide_banner", "-i", inp}
-	var n *convPar
-	n, e = videoInfo(inp)
+func currWebm(cp getCP, oe outExt) (args []string, e error) {
+	n, e := cp()
 	if e == nil {
 		if n.audioC == "opus" {
 			n.audioC = "copy"
 		} else {
 			n.audioC = "libopus"
 		}
-		args = append(args, "-acodec", n.audioC)
+		args = []string{"-acodec", n.audioC}
 		if n.videoC == "vp9" {
 			n.videoC = "copy"
 		} else {
@@ -265,7 +254,6 @@ func currWebm(inp string, oe outExt) (c *exec.Cmd, e error) {
 		}
 		out := oe(".webm")
 		args = append(args, "-vcodec", n.videoC, out)
-		c = exec.Command("ffmpeg", args...)
 	}
 	return
 }
