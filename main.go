@@ -156,7 +156,7 @@ func xvid(cp getCP, oe outExt) (args []string, e error) {
 		} else {
 			n.audioC = "mp3"
 		}
-		out := oe(".avi")
+		out := oe(".mp4")
 		args = append(args, "-b:v", "1000k",
 			"-vcodec", "libxvid", "-s", "720x576",
 			"-aspect:v", "4:3", "-acodec", n.audioC, out)
