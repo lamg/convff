@@ -235,7 +235,7 @@ When the target is a digital TV receiver device the command is more complicated.
 
 For video streams with H264 codec at 30 frames per second (fps) and less, there is no need to convert such streams. In that case the arguments for `ffmpeg` contain `-vcodec copy`. If the video stream is encoded with other format different from h264, it needs to be converted. Also, regardless of the video codec, if `fps > 30` the arguments to `ffmpeg` contain `-vcodec h264 -r 30`.
 
-The digital TV device reproduces mp3 sound, therefore if the input audio stream has that format, the arguments to `ffmpeg` contain `-acodec copy`. Also that device reads MKV files, and that is the container selected in this case. This is implemented by:
+The digital TV device reproduces sound with MP3 and AAC codecs, therefore if the input audio stream has that format, the arguments to `ffmpeg` contain `-acodec copy`. Also that device reads MKV files, and that is the container selected in this case. This is implemented by:
 
 ```go "mkv"
 func mkv(cp getCP, oe outExt) (args []string, e error) {
