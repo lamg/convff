@@ -241,7 +241,7 @@ The digital TV device reproduces mp3 sound, therefore if the input audio stream 
 func mkv(cp getCP, oe outExt) (args []string, e error) {
 	n, e := cp()
 	if e == nil {
-		if n.audioC == "mp3" {
+		if n.audioC == "aac" || n.audioC == "mp3" {
 			n.audioC = "copy"
 		} else {
 			n.audioC = "mp3"

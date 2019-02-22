@@ -167,7 +167,7 @@ func xvid(cp getCP, oe outExt) (args []string, e error) {
 func mkv(cp getCP, oe outExt) (args []string, e error) {
 	n, e := cp()
 	if e == nil {
-		if n.audioC == "mp3" {
+		if n.audioC == "aac" || n.audioC == "mp3" {
 			n.audioC = "copy"
 		} else {
 			n.audioC = "mp3"
