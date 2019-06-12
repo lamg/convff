@@ -9,7 +9,7 @@
 - `-d dir` where `dir` is the output directory for the converted files, it cannot be "." for avoiding name clashes.
 - `-v` convert files for a VCD player
 - `-x` convert files for a XVID player
-- `-t` convert files for a digital TV receiver device, that reads MKV files with H264 video and MP3 audio.
+- `-t` convert files for a digital TV receiver device, that reads MKV files with H264 video and Vorbis audio.
 - `-w` convert files to WEBM format trying to copy streams compatible with WEBM.
 - `-wo` convert files to WEBM with VP8 and Vorbis streams.
 - `-wc` convert files to WEBM with VP9 and Opus streams.
@@ -241,10 +241,10 @@ The digital TV device reproduces sound with MP3 and AAC codecs, therefore if the
 func mkv(cp getCP, oe outExt) (args []string, e error) {
 	n, e := cp()
 	if e == nil {
-		if n.audioC == "aac" || n.audioC == "mp3" {
+		if n.audioC == "aac" || n.audioC == "mp3" || n.audioC == "vorbis" {
 			n.audioC = "copy"
 		} else {
-			n.audioC = "mp3"
+			n.audioC = "libvorbis"
 		}
 		args = []string{"-acodec", n.audioC}
 		if n.videoC == "h264" && n.fps <= 30 {
