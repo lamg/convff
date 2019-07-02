@@ -173,13 +173,10 @@ func mkv(cp getCP, oe outExt) (args []string, e error) {
 			n.audioC = "libvorbis"
 		}
 		args = []string{"-acodec", n.audioC}
-		if n.videoC == "h264" && n.fps <= 30 {
+		if n.videoC == "h264" {
 			n.videoC = "copy"
 		} else {
 			n.videoC = "h264"
-		}
-		if n.fps > 30 {
-			args = append(args, "-r", "30")
 		}
 		out := oe(".mkv")
 		args = append(args, "-vcodec", n.videoC, out)

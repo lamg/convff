@@ -233,7 +233,7 @@ func xvid(cp getCP, oe outExt) (args []string, e error) {
 
 When the target is a digital TV receiver device the command is more complicated. Since it can reproduce several video and audio formats, using the `copy` feature there's opportunity to reduce the conversion time.
 
-For video streams with H264 codec at 30 frames per second (fps) and less, there is no need to convert such streams. In that case the arguments for `ffmpeg` contain `-vcodec copy`. If the video stream is encoded with other format different from h264, it needs to be converted. Also, regardless of the video codec, if `fps > 30` the arguments to `ffmpeg` contain `-vcodec h264 -r 30`.
+For video streams with H264 codec, tested with at most 50 frames per second (fps), there is no need to convert such streams. In that case the arguments for `ffmpeg` contain `-vcodec copy`. If the video stream is encoded with other format different from h264, it needs to be converted.
 
 The digital TV device reproduces sound with MP3 and AAC codecs, therefore if the input audio stream has that format, the arguments to `ffmpeg` contain `-acodec copy`. Also that device reads MKV files, and that is the container selected in this case. This is implemented by:
 
@@ -247,13 +247,10 @@ func mkv(cp getCP, oe outExt) (args []string, e error) {
 			n.audioC = "libvorbis"
 		}
 		args = []string{"-acodec", n.audioC}
-		if n.videoC == "h264" && n.fps <= 30 {
+		if n.videoC == "h264" {
 			n.videoC = "copy"
 		} else {
 			n.videoC = "h264"
-		}
-		if n.fps > 30 {
-			args = append(args, "-r", "30")
 		}
 		out := oe(".mkv")
 		args = append(args, "-vcodec", n.videoC, out)
