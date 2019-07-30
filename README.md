@@ -13,6 +13,7 @@
 - `-w` convert files to WEBM format trying to copy streams compatible with WEBM.
 - `-wo` convert files to WEBM with VP8 and Vorbis streams.
 - `-wc` convert files to WEBM with VP9 and Opus streams.
+- `-o` convert files to Opus.
 
 ## Core implementation
 
@@ -132,7 +133,7 @@ The `main` procedure is implemented by:
 
 ```go "main content"
 var dest string
-var fvcd, fxvid, fdtv, w, wo, wc bool
+var fvcd, fxvid, fdtv, w, wo, wc, o bool
 flag.StringVar(&dest, "d", "", "Destination folder")
 flag.BoolVar(&fvcd, "v", false, "VCD player target")
 flag.BoolVar(&fxvid, "x", false, "XVID player target")
@@ -140,6 +141,7 @@ flag.BoolVar(&fdtv, "t", false, "Digital TV device target")
 flag.BoolVar(&w, "w", false, "Faster conversion to WEBM")
 flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
 flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
+flag.BoolVar(&o, "o", false, "Opus audio file")
 flag.Parse()
 var e error
 if dest != "." && dest != "" {
@@ -179,6 +181,8 @@ if fvcd {
 	cs = commands(r, dest, oldWebm)
 } else if wc {
 	cs = commands(r, dest, currWebm)
+} else if o {
+	cs = commands(r, dest, opus)
 }
 
 inf := func(i int) {
@@ -190,7 +194,7 @@ forall(inf, len(cs))
 
 ## Implementation of conversion argument generators
 
-Notice that `vcd`, `xvid`, `mkv`, `fastWebm`, `oldWebm` and `currWebm` are implementations of `convArgs`.
+Notice that `vcd`, `xvid`, `mkv`, `fastWebm`, `oldWebm`, `currWebm` and `opus` are implementations of `convArgs`.
 
 ### DVD player as target
 
@@ -345,6 +349,25 @@ The WEBM conversion section includes:
 <<<current webm>>>
 ```
 
+### Converting to Opus
+
+```go "opus"
+func opus(cp getCP, oe outExt) (args []string, e error){
+	n, e := cp()
+	if e == nil {
+		if n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = []string{"-acodec", n.audioC}
+		out := oe(".opus")
+		args = append(args, out)
+	}
+	return
+}
+```
+
 ### Source file
 
 The source file for this program is:
@@ -381,6 +404,8 @@ func main() {
 <<<ffinfo>>>
 
 <<<webm>>>
+
+<<<opus>>>
 ```
 
 ### TODO

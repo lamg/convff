@@ -16,7 +16,7 @@ import (
 
 func main() {
 	var dest string
-	var fvcd, fxvid, fdtv, w, wo, wc bool
+	var fvcd, fxvid, fdtv, w, wo, wc, o bool
 	flag.StringVar(&dest, "d", "", "Destination folder")
 	flag.BoolVar(&fvcd, "v", false, "VCD player target")
 	flag.BoolVar(&fxvid, "x", false, "XVID player target")
@@ -24,6 +24,7 @@ func main() {
 	flag.BoolVar(&w, "w", false, "Faster conversion to WEBM")
 	flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
 	flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
+	flag.BoolVar(&o, "o", false, "Opus audio file")
 	flag.Parse()
 	var e error
 	if dest != "." && dest != "" {
@@ -51,6 +52,8 @@ func main() {
 			cs = commands(r, dest, oldWebm)
 		} else if wc {
 			cs = commands(r, dest, currWebm)
+		} else if o {
+			cs = commands(r, dest, opus)
 		}
 		
 		inf := func(i int) {
@@ -251,6 +254,21 @@ func currWebm(cp getCP, oe outExt) (args []string, e error) {
 		}
 		out := oe(".webm")
 		args = append(args, "-vcodec", n.videoC, out)
+	}
+	return
+}
+
+func opus(cp getCP, oe outExt) (args []string, e error){
+	n, e := cp()
+	if e == nil {
+		if n.audioC == "opus" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libopus"
+		}
+		args = []string{"-acodec", n.audioC}
+		out := oe(".opus")
+		args = append(args, out)
 	}
 	return
 }
