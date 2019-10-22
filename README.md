@@ -14,6 +14,7 @@
 - `-wo` convert files to WEBM with VP8 and Vorbis streams.
 - `-wc` convert files to WEBM with VP9 and Opus streams.
 - `-o` convert files to Opus.
+- `-g` convert files to Vorbis with OGG as container.
 
 ## Core implementation
 
@@ -133,7 +134,7 @@ The `main` procedure is implemented by:
 
 ```go "main content"
 var dest string
-var fvcd, fxvid, fdtv, w, wo, wc, o bool
+var fvcd, fxvid, fdtv, w, wo, wc, o, g bool
 flag.StringVar(&dest, "d", "", "Destination folder")
 flag.BoolVar(&fvcd, "v", false, "VCD player target")
 flag.BoolVar(&fxvid, "x", false, "XVID player target")
@@ -142,6 +143,7 @@ flag.BoolVar(&w, "w", false, "Faster conversion to WEBM")
 flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
 flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
 flag.BoolVar(&o, "o", false, "Opus audio file")
+flag.BoolVar(&g, "g", false, "Vorbis with OGG container file")
 flag.Parse()
 var e error
 if dest != "." && dest != "" {
@@ -183,6 +185,8 @@ if fvcd {
 	cs = commands(r, dest, currWebm)
 } else if o {
 	cs = commands(r, dest, opus)
+} else if g {
+	cs = commands(r, dest, ogg)
 }
 
 inf := func(i int) {
@@ -349,9 +353,9 @@ The WEBM conversion section includes:
 <<<current webm>>>
 ```
 
-### Converting to Opus
+### Converting to Opus and OGG
 
-```go "opus"
+```go "opus and ogg"
 func opus(cp getCP, oe outExt) (args []string, e error){
 	n, e := cp()
 	if e == nil {
@@ -362,6 +366,21 @@ func opus(cp getCP, oe outExt) (args []string, e error){
 		}
 		args = []string{"-acodec", n.audioC}
 		out := oe(".opus")
+		args = append(args, out)
+	}
+	return
+}
+
+func ogg(cp getCP, oe outExt) (args []string, e error){
+	n, e := cp()
+	if e == nil {
+		if n.audioC == "vorbis" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libvorbis"
+		}
+		args = []string{"-acodec", n.audioC}
+		out := oe(".ogg")
 		args = append(args, out)
 	}
 	return
@@ -405,7 +424,7 @@ func main() {
 
 <<<webm>>>
 
-<<<opus>>>
+<<<opus and ogg>>>
 ```
 
 ### TODO

@@ -16,7 +16,7 @@ import (
 
 func main() {
 	var dest string
-	var fvcd, fxvid, fdtv, w, wo, wc, o bool
+	var fvcd, fxvid, fdtv, w, wo, wc, o, g bool
 	flag.StringVar(&dest, "d", "", "Destination folder")
 	flag.BoolVar(&fvcd, "v", false, "VCD player target")
 	flag.BoolVar(&fxvid, "x", false, "XVID player target")
@@ -25,6 +25,7 @@ func main() {
 	flag.BoolVar(&wo, "wo", false, "WEBM with VP8 and Vorbis")
 	flag.BoolVar(&wo, "wc", false, "WEBM with VP9 and Opus")
 	flag.BoolVar(&o, "o", false, "Opus audio file")
+	flag.BoolVar(&g, "g", false, "Vorbis with OGG container file")
 	flag.Parse()
 	var e error
 	if dest != "." && dest != "" {
@@ -54,6 +55,8 @@ func main() {
 			cs = commands(r, dest, currWebm)
 		} else if o {
 			cs = commands(r, dest, opus)
+		} else if g {
+			cs = commands(r, dest, ogg)
 		}
 		
 		inf := func(i int) {
@@ -268,6 +271,21 @@ func opus(cp getCP, oe outExt) (args []string, e error){
 		}
 		args = []string{"-acodec", n.audioC}
 		out := oe(".opus")
+		args = append(args, out)
+	}
+	return
+}
+
+func ogg(cp getCP, oe outExt) (args []string, e error){
+	n, e := cp()
+	if e == nil {
+		if n.audioC == "vorbis" {
+			n.audioC = "copy"
+		} else {
+			n.audioC = "libvorbis"
+		}
+		args = []string{"-acodec", n.audioC}
+		out := oe(".ogg")
 		args = append(args, out)
 	}
 	return
